@@ -9,3 +9,6 @@ goal of the project is to simplify the triage through Duo's offered api services
 
 
 
+****UPDATE
+tensor flow will be pushed back and substituted with rule based approach temporarily.
+
