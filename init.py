@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import time
 from db_store import store_suspicious_log
+from twilio_agent import trigger_ai_prompt
 
 load_dotenv()
 admin_api = Admin(
@@ -10,7 +11,7 @@ admin_api = Admin(
     skey=os.getenv("DUO_SKEY") ,       # secret key
     host=os.getenv("DUO_HOST")
 )
-
+trigger_ai_prompt() # triggers ai prompt from another file
 #last_seen= 0 
 
 try:
@@ -30,7 +31,6 @@ while True:
 
         #for log in logs:
         
-
         for log in logs:
             print(log)
             timestamp = log.get("timestamp")
@@ -45,6 +45,7 @@ while True:
                 if log.get("result") != "success": 
                     store_suspicious_log(log)
                     print("stored sus log")
+                    
             print("time passed")
         time.sleep(60)
     except Exception as e:

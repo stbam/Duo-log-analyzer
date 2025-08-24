@@ -1,1 +1,6 @@
 .env
+rule_based.py
+test.py
+test.txt
+makefile
+duo_logs.db

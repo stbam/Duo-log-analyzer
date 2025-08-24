@@ -1,0 +1,25 @@
+project
+
+-python script to grab data from duo
+-python script then takes that data and feeds it to tensor flow model.
+
+-tensor flow model must be trained on synthetic data for duo log analysis.
+
+-if fraud should notify user by either calling (chat gpt ai voice) or text
+and then (mark as fraud,dismiss,lockout user) 
+
+
+-decisions should be logged into a database and shown via a dashboard.
+
+
+
+
+
+ngrok http 5003 --url=brent.ngrok.io
+
+
+
+curl -v https://ce291ca06dfd.ngrok-free.app/incoming-call
+
+curl -v https://YOUR_NGROK_URL/incoming-call
+curl -X POST https://77da38640408.ngrok-free.app/call-me
