@@ -33,10 +33,6 @@ LOG_EVENT_TYPES = [
 SHOW_TIMING_MATH = False
 
 app = FastAPI()
-
-
-
-
 if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key. Please set it in the .env file.')
 
@@ -250,24 +246,21 @@ async def send_initial_conversation_item(openai_ws):
         "type": "conversation.item.create",
         "item": {
             "type": "message",
-            "role": "user",
+            "role": "assistant",
             "content": [
                 {
-                    "type": "input_text",
+                    "type": "text",
                     "text":(
-                        "You are an automated fraud verification assistant. "
-                        "Start the call by greeting the user and explaining: "
-                         "'We received a Duo fraud alert from your account and we would like to verify some details prior to taking additional actions.' "
-                        "Then ask them some questions one at a time wait for them to respond before moving on"
-                        "1.Can you confirm your username?"
-                        "2.Can you confirm you email?"
-                        "3.Can you confirm your full name?"
-                        "4.Was this an accident push?"
-                        "if they say yes ask them the following, else skip"
-                        "5.was the fraud pushed because of a spam prompting? Can you describe it?"
-                        "if they say no ask them the following"
-                        "5. Was the fraud pushed because of a suspicious login attempt? can you describe it?"
-                        "finally briefly thank them for their time and tell them they may be contacted again based on these responses."
+                        "You are an automated fraud verification assistant.\n"
+                        "Start the call by greeting the user and saying: 'We received a Duo fraud alert.'\n"
+                        "Then ask the following questions one at a time, waiting for the user's response before moving to the next:\n"
+                        "1. Can you confirm your username?\n"
+                        "2. Can you confirm your email?\n"
+                        "3. Can you confirm your full name?\n"
+                        "4. Was this an accidental push?\n"
+                        "   - If yes, ask: Was the fraud pushed because of spam prompting? Can you describe it?\n"
+                        "   - If no, ask: Was the fraud pushed because of a suspicious login attempt? Can you describe it?\n"
+                        "Finally, briefly thank them for their time and tell them they may be contacted again based on these responses."
                     )
                 }
             ]
@@ -275,8 +268,6 @@ async def send_initial_conversation_item(openai_ws):
     }
     await openai_ws.send(json.dumps(initial_conversation_item))
     await openai_ws.send(json.dumps({"type": "response.create"}))
-
-
 async def initialize_session(openai_ws):
     """Control initial session with OpenAI."""
     session_update = {
