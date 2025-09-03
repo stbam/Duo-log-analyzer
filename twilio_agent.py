@@ -211,13 +211,13 @@ async def handle_media_stream(websocket: WebSocket):
                     if response.get("type") == "response.output_text":
                         transcript = response["text"]
                         print(f"[USER SAID]: {transcript}")
-                        # 👉 Store transcript in DB, file, or memory here
+                        
 
-                    #  2. Capture assistant messages as text too
+                    #  Capture assistant messages as text too
                     if response.get("type") == "response.message":
                         assistant_text = response["content"][0]["text"]
                         print(f"[ASSISTANT SAID]: {assistant_text}")
-                        # 👉 Store this too if needed
+                       
 
 
                     if response.get('type') == 'conversation.input_audio_transcription.delta':

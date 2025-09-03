@@ -1,0 +1,9 @@
+write a database for user response.
+when chat gpt calls user ensure it captures and stores in database responses.
+change rule-based approach to pytorch
+
+user responses must be transcribed
+need to test run user and assistant conversation.
+
+
+meantion teams and messages integration
