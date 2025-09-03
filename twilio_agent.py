@@ -10,6 +10,9 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from dotenv import load_dotenv
 from twilio.rest import Client
 import requests
+from db_store import store_message
+
+
 load_dotenv()
 
 # Configuration
@@ -18,10 +21,16 @@ CLIENT_SID = os.getenv('CLIENT_SID')
 ClIENT_TOKEN=os.getenv('ClIENT_TOKEN')
 PORT = int(os.getenv('PORT', 5003))
 SYSTEM_MESSAGE = (
-    "You are a helpful and bubbly AI assistant who loves to chat about "
-    "anything the user is interested in and is prepared to offer them facts. "
-    "You have a penchant for dad jokes, owl jokes, and rickrolling – subtly. "
-    "Always stay positive, but work in a joke when appropriate."
+    "You are an automated fraud verification assistant.\n"
+                        "Start the call by greeting the user and saying: 'We received a Duo fraud alert.'\n"
+                        "Then ask the following questions one at a time, waiting for the user's response before moving to the next:\n"
+                        "1. Can you confirm your username?\n"
+                        "2. Can you confirm your email?\n"
+                        "3. Can you confirm your full name?\n"
+                        "4. Was this an accidental push?\n"
+                        "   - If yes, ask: Was the fraud pushed because of spam prompting? Can you describe it?\n"
+                        "   - If no, ask: Was the fraud pushed because of a suspicious login attempt? Can you describe it?\n"
+                        "Finally, briefly thank them for their time and tell them they may be contacted again based on these responses."
 )
 VOICE = 'alloy'
 LOG_EVENT_TYPES = [
@@ -71,7 +80,7 @@ async def call_me():
     call = client.calls.create(
         to='3477559738',
         from_='6187163207',
-        url="https://f619e34a4c70.ngrok-free.app/outbound-twiml"  # hardcoded needs to be switched for var 
+        url="https://d3dcb23a5904.ngrok-free.app/outbound-twiml"  # hardcoded needs to be switched for var 
     )
     return {"status": "calling", "sid": call.sid}
 
@@ -144,6 +153,7 @@ async def handle_media_stream(websocket: WebSocket):
                             "audio": data['media']['payload']
                         }
                         await openai_ws.send(json.dumps(audio_append))
+                    
                     elif data['event'] == 'start':
                         stream_sid = data['start']['streamSid']
                         print(f"Incoming stream has started {stream_sid}")
@@ -161,9 +171,66 @@ async def handle_media_stream(websocket: WebSocket):
         async def send_to_twilio():
             """Receive events from the OpenAI Realtime API, send audio back to Twilio."""
             nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio
+            conversation_log = []
+            conversation_id = None
+            
+
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
+                    
+                    if "id" in response and response["type"].startswith("response."): #assigns conversation id to a comment.
+                        if not conversation_id:  # only set once
+                            conversation_id = response["id"]
+                            print(f"Assigned conversation_id: {conversation_id}")
+
+
+                    if response.get('type') == 'conversation.item.input_audio_transcription.completed':##outputs user's reply.
+                        transcription = response.get('transcript')
+                        if transcription:
+                            conversation_log.append({"role": "user", "text": transcription})
+
+                            store_message(conversation_id, "user", transcription)##
+                            print(f"User said: {transcription}") 
+
+                    if response.get('type') == 'conversation.input_audio_transcription.completed':## may need to delete later
+                        user_text = response.get('text', '')
+                        print("Human (final):", user_text)
+                        conversation_log.append({"role": "user", "text": user_text})
+
+
+                    if response.get("type") == "response.message":
+                        assistant_text = response["content"][0]["text"]
+                        store_message(conversation_id, "assistant", assistant_text)##
+                        print("Assistant:", assistant_text)
+                        conversation_log.append({"role": "assistant", "text": assistant_text})
+
+                    if response['type'] in LOG_EVENT_TYPES:
+                              print(f"Received event: {response['type']}", response)
+
+                    if response.get("type") == "response.output_text":
+                        transcript = response["text"]
+                        print(f"[USER SAID]: {transcript}")
+                        # 👉 Store transcript in DB, file, or memory here
+
+                    #  2. Capture assistant messages as text too
+                    if response.get("type") == "response.message":
+                        assistant_text = response["content"][0]["text"]
+                        print(f"[ASSISTANT SAID]: {assistant_text}")
+                        # 👉 Store this too if needed
+
+
+                    if response.get('type') == 'conversation.input_audio_transcription.delta':
+                        user_text = response.get('text', '')
+                        print("Human (partial):", user_text)
+                        # Here you could insert into SQL:
+                        # cursor.execute("INSERT INTO transcripts (text) VALUES (?)", (user_text,))
+                        
+                    if response.get('type') == 'conversation.input_audio_transcription.completed':
+                        user_text = response.get('text', '')
+                        print("Human (final):", user_text)
+                        # Save to SQL as the final transcript
+    
                     if response['type'] in LOG_EVENT_TYPES:
                         print(f"Received event: {response['type']}", response)
 
@@ -186,7 +253,8 @@ async def handle_media_stream(websocket: WebSocket):
                         # Update last_assistant_item safely
                         if response.get('item_id'):
                             last_assistant_item = response['item_id']
-
+                       
+                            
                         await send_mark(websocket, stream_sid)
 
                     # Trigger an interruption. Your use case might work better using `input_audio_buffer.speech_stopped`, or combining the two.
@@ -195,8 +263,11 @@ async def handle_media_stream(websocket: WebSocket):
                         if last_assistant_item:
                             print(f"Interrupting response with id: {last_assistant_item}")
                             await handle_speech_started_event()
+                
             except Exception as e:
                 print(f"Error in send_to_twilio: {e}")
+
+
 
         async def handle_speech_started_event():
             """Handle interruption when the caller's speech starts."""
@@ -240,7 +311,7 @@ async def handle_media_stream(websocket: WebSocket):
 
         await asyncio.gather(receive_from_twilio(), send_to_twilio())
 
-async def send_initial_conversation_item(openai_ws):
+async def send_initial_conversation_item(openai_ws): #should be removed since system message does this flow now
     """Send initial conversation item if AI talks first."""
     initial_conversation_item = {
         "type": "conversation.item.create",
@@ -280,9 +351,13 @@ async def initialize_session(openai_ws):
             "instructions": SYSTEM_MESSAGE,
             "modalities": ["text", "audio"],
             "temperature": 0.8,
+            "input_audio_transcription": {
+            "model": "whisper-1"
+        }
+
         }
     }
-    print('Sending session update:', json.dumps(session_update))
+   # print('Sending session update:', json.dumps(session_update))
     await openai_ws.send(json.dumps(session_update))
 
     # Uncomment the next line to have the AI speak first
