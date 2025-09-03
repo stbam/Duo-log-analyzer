@@ -53,7 +53,7 @@ while True:
         #for log in logs:
         for log in logs: #  for log in sample_logs:
             
-           # print(log) 
+            print(log) 
             timestamp = log.get("timestamp")
             if timestamp> last_seen:
                 last_seen = timestamp 

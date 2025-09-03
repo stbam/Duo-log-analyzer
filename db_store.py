@@ -86,3 +86,15 @@ def store_message(conversation_id, role, message):
      conn.close()
     except Exception as e:
         print(f"Database error:{e}")
+
+
+def  retrieve_user(username):#work in progress
+    try:
+        conn=sqlite3.connect('duo_logs.db')
+        cursor=conn.cursor()
+        cursor.execute(' select username from suspicious_logs where device=?',(username)) #SELECT device from suspicious_logs where username=?',(username)
+        result = cursor.fetchone()  # fetchone() returns a tuple or None
+        return result[0]
+
+    except Exception as e:
+        print(f"Database error:{e}")

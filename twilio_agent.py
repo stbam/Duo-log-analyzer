@@ -72,8 +72,6 @@ def trigger_ai_prompt():
         print("test4")
     asyncio.run(start())
 
-
-
 @app.post("/call-me")
 async def call_me():
     """Make Twilio call your phone and connect to AI media stream."""
@@ -146,6 +144,7 @@ async def handle_media_stream(websocket: WebSocket):
             try:
                 async for message in websocket.iter_text():
                     data = json.loads(message)
+                    
                     if data['event'] == 'media' and openai_ws.open:
                         latest_media_timestamp = int(data['media']['timestamp'])
                         audio_append = {
@@ -173,66 +172,37 @@ async def handle_media_stream(websocket: WebSocket):
             nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio
             conversation_log = []
             conversation_id = None
-            
 
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
                     
-                    if "id" in response and response["type"].startswith("response."): #assigns conversation id to a comment.
-                        if not conversation_id:  # only set once
-                            conversation_id = response["id"]
-                            print(f"Assigned conversation_id: {conversation_id}")
-
+                    if response.get("type") == "response.created":
+                        conversation_id = response.get("response", {}).get("conversation_id")
+                        print(f"Assigned conversation_id: {conversation_id}")
 
                     if response.get('type') == 'conversation.item.input_audio_transcription.completed':##outputs user's reply.
                         transcription = response.get('transcript')
                         if transcription:
                             conversation_log.append({"role": "user", "text": transcription})
-
+                            
                             store_message(conversation_id, "user", transcription)##
                             print(f"User said: {transcription}") 
 
-                    if response.get('type') == 'conversation.input_audio_transcription.completed':## may need to delete later
-                        user_text = response.get('text', '')
-                        print("Human (final):", user_text)
-                        conversation_log.append({"role": "user", "text": user_text})
-
-
-                    if response.get("type") == "response.message":
-                        assistant_text = response["content"][0]["text"]
-                        store_message(conversation_id, "assistant", assistant_text)##
-                        print("Assistant:", assistant_text)
-                        conversation_log.append({"role": "assistant", "text": assistant_text})
+                    if response.get("type") == "response.done":
+                        output_items = response["response"]["output"]
+                        for item in output_items:
+                                if item.get("role")=="assistant" and item.get("type")=="message":
+                                       for content in item.get("content"): #for content in item.get("content",[]):
+                                               if content.get("type") == "audio":
+                                                assistant_text = content.get("transcript")
+                                                store_message(conversation_id, "assistant", assistant_text)##
+                                                print("Assistant:", assistant_text)
 
                     if response['type'] in LOG_EVENT_TYPES:
                               print(f"Received event: {response['type']}", response)
-
-                    if response.get("type") == "response.output_text":
-                        transcript = response["text"]
-                        print(f"[USER SAID]: {transcript}")
-                        
-
-                    #  Capture assistant messages as text too
-                    if response.get("type") == "response.message":
-                        assistant_text = response["content"][0]["text"]
-                        print(f"[ASSISTANT SAID]: {assistant_text}")
-                       
-
-
-                    if response.get('type') == 'conversation.input_audio_transcription.delta':
-                        user_text = response.get('text', '')
-                        print("Human (partial):", user_text)
-                        # Here you could insert into SQL:
-                        # cursor.execute("INSERT INTO transcripts (text) VALUES (?)", (user_text,))
-                        
-                    if response.get('type') == 'conversation.input_audio_transcription.completed':
-                        user_text = response.get('text', '')
-                        print("Human (final):", user_text)
-                        # Save to SQL as the final transcript
-    
-                    if response['type'] in LOG_EVENT_TYPES:
-                        print(f"Received event: {response['type']}", response)
+                              pretty_json = json.dumps(response, indent=4)
+                              print(pretty_json)
 
                     if response.get('type') == 'response.audio.delta' and 'delta' in response:
                         audio_payload = base64.b64encode(base64.b64decode(response['delta'])).decode('utf-8')

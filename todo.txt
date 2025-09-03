@@ -1,9 +1,24 @@
-write a database for user response.
-when chat gpt calls user ensure it captures and stores in database responses.
-change rule-based approach to pytorch
+[x] write a database for user response.
+[x] when chat gpt calls user ensure it captures and stores in database responses.
+[ ] change rule-based approach to pytorch
 
-user responses must be transcribed
-need to test run user and assistant conversation.
+[x] user responses must be transcribed 
+[ ] need to test run user and assistant conversation.
+[ ] script decision needs to be written.
 
 
 meantion teams and messages integration
+show a demo while multiple emulated phones are running the demo and how agent handles it.
+
+
+
+user clicks fraud.
+fraud gets sent to inti.py
+init.py extracts relevant details from the log (username,phone,fraud details,ip)
+rule based/machine learning then decides to send it to twilio/user agent
+
+user ai agent contacts that user.
+ai agent gathers conversation and stores it in database
+ai agent then makes the decision to lockout,ignore threat,mark as suspicious.
+
+fraud log,ai agent decisions and conversation are stored in a dashboard.
