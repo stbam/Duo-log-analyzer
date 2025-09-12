@@ -3,31 +3,8 @@ from dotenv import load_dotenv
 import os
 import time
 from db_store import store_suspicious_log
-from twilio_agent import trigger_ai_prompt
-
-sample_logs = [
-    {
-        "username": "alice",
-        "timestamp": 1756060999,
-        "result": "FRAUD",
-        "ip": "192.168.1.10",
-        "device": "iPhone"
-    },
-    {
-        "username": "bob",
-        "timestamp": 1756061999,
-        "result": "SUCCESS",
-        "ip": "74.89.43.241",
-        "device": "MacBook Pro"
-    },
-    {
-        "username": "charlie",
-        "timestamp": 1756062999,
-        "result": "FRAUD",
-        "ip": "10.0.0.5",
-        "device": "Windows Laptop"
-    }
-]
+from twilio_agent import trigger_ai_prompt,handle_media_stream,get_cookie_or_token
+import json
 
 
 load_dotenv()
@@ -36,7 +13,12 @@ admin_api = Admin(
     skey=os.getenv("DUO_SKEY") ,       # secret key
     host=os.getenv("DUO_HOST")
 )
-trigger_ai_prompt() # triggers ai prompt from another file
+device = '347-755-9738'
+
+
+trigger_ai_prompt(device) # triggers ai prompt from another file
+#get_cookie_or_token(device,device)
+#handle_media_stream(device)
 #last_seen= 0 
 try:
     with open("last_seen.txt", "r") as f:
@@ -50,11 +32,19 @@ while True:
         with open("last_seen.txt", "w") as f:
             f.write(str(last_seen))
         logs = admin_api.get_authentication_log(mintime=last_seen+1) #commented out to avoid api trigger
+       # with open("log_seen.txt","r") as f:
+            #logs= json.load(f)  # must be valid JSON list of dicts
+
+       # with open("log_seen.txt","w") as f:
+        #     f.write(str(logs))
+
+      #  print(logs)
         #for log in logs:
         for log in logs: #  for log in sample_logs:
             
             print(log) 
             timestamp = log.get("timestamp")
+            #print(timestamp)
             if timestamp> last_seen:
                 last_seen = timestamp 
                 print("User:", log.get("username"))
@@ -62,7 +52,23 @@ while True:
                 print("Result:", log.get("result"))
                 print("IP:", log.get("ip"))
                 print("Device:", log.get("device"))
+                print("Email:", log.get("email"))
+                print("Factor:", log.get("factor"))
+                print("Integration:", log.get("integration"))
+                print("ISO Timestamp:", log.get("isotimestamp"))
+                print("Reason:", log.get("reason"))
+                print("Event Type:", log.get("eventtype"))
+                print("Host:", log.get("host"))
+                print("Alias:", log.get("alias"))
+                print("New Enrollment:", log.get("new_enrollment"))
+                print("OOD Software:", log.get("ood_software"))
                 print("-" * 40)
+
+
+              #  device= log.get("device") working 
+              #  trigger_ai_prompt(device) 
+
+
                 log_entry={
                     "username":log.get("username"),
                     "timestamp":log.get("timestamp")
@@ -72,16 +78,14 @@ while True:
                 if log.get("result") != "success": 
                     store_suspicious_log(log)
                     print("stored sus log")
+                    
             print("time passed")
         time.sleep(60)
     except Exception as e:
         print("error fetching logs: ",e)
         time.sleep(60)
 
-log_entry = {
-    "username": "alice",
-    "timestamp": "",
-    "result": "failed",
-    "ip": "192.168.1.10",
-    "device": "iPhone"
-}
+
+
+
+

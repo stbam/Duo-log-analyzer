@@ -10,11 +10,47 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Say, Stream
 from dotenv import load_dotenv
 from twilio.rest import Client
 import requests
-from db_store import store_message
+from db_store import store_message,store_phone_number,update_record_with_conversation_id
+
+from typing import Annotated
+from fastapi import (
+    Cookie,
+    Depends,
+    FastAPI,
+    Query,
+    WebSocket,
+    WebSocketException,
+    status,
+)
+
+import sqlite3
+
+def get_all_phone_numbers():
+    conn = sqlite3.connect("duo_logs.db")
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT phone FROM phone_number;")
+    cursor.execute
+
+    rows = cursor.fetchall()
+    if rows:  # only delete if there was something///////////// deletes to have it ready for new phone number
+        cursor.execute("DELETE FROM phone_number;")
+        conn.commit()
+
+    phone_numbers = [row[0] for row in rows]
+    
+    conn.close()
+    return phone_numbers
+
+
+# Example usage
+#phones = get_all_phone_numbers()
+#print("All phone numbers:", phones)
+
+
 
 
 load_dotenv()
-
 # Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 CLIENT_SID = os.getenv('CLIENT_SID')
@@ -41,6 +77,7 @@ LOG_EVENT_TYPES = [
 ]
 SHOW_TIMING_MATH = False
 
+
 app = FastAPI()
 if not OPENAI_API_KEY:
     raise ValueError('Missing the OpenAI API key. Please set it in the .env file.')
@@ -61,8 +98,9 @@ async def create_openai_websocket_connection():
     return ws
 
 
-def trigger_ai_prompt():
-    response = requests.post("http://localhost:5003/call-me")
+def trigger_ai_prompt(phone_number):
+    phone_number='3477559738'
+    response = requests.post(f"http://localhost:5003/call-me?phone_number={phone_number}")
     print(response.status_code, response.json())
     async def start():
         openai_ws = await create_openai_websocket_connection()
@@ -72,19 +110,35 @@ def trigger_ai_prompt():
         print("test4")
     asyncio.run(start())
 
+
+async def get_cookie_or_token(
+    websocket: WebSocket,
+    session: Annotated[str | None, Cookie()] =  "test",
+    token: Annotated[str | None, Query()] = "test",
+):
+    print(session,"here is session")
+    print(token,"here")
+    if session is None and token is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+    return session or token
+
+
 @app.post("/call-me")
-async def call_me():
+async def call_me(phone_number:str):
+    
+    store_phone_number(phone_number)
+    print(phone_number,'here is in/call-me')
     """Make Twilio call your phone and connect to AI media stream."""
     call = client.calls.create(
-        to='3477559738',
+        to=phone_number,
         from_='6187163207',
-        url="https://d3dcb23a5904.ngrok-free.app/outbound-twiml"  # hardcoded needs to be switched for var 
+        url=f"https://d3dcb23a5904.ngrok-free.app/outbound-twiml?phone_number={phone_number}"  # hardcoded needs to be switched for var 
     )
     return {"status": "calling", "sid": call.sid}
 
 
 @app.api_route("/outbound-twiml", methods=["GET", "POST"])
-async def outbound_twiml(request: Request):
+async def outbound_twiml(request: Request,phone_number:str):
     """TwiML for outbound call — connects to AI's WebSocket stream."""
     response = VoiceResponse()
     response.say("Connecting you to the AI assistant.")
@@ -92,7 +146,7 @@ async def outbound_twiml(request: Request):
     connect = Connect()
     print("connected")
     host = request.url.hostname  
-    connect.stream(url=f'wss://{host}/media-stream')  # AI WebSocket endpoint
+    connect.stream(url=f'wss://{host}/media-stream?phone_number={phone_number}')  # AI WebSocket endpoint
     print("host")
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
@@ -117,10 +171,16 @@ async def handle_incoming_call(request: Request):
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 @app.websocket("/media-stream")
-async def handle_media_stream(websocket: WebSocket):
+async def handle_media_stream(websocket: WebSocket,cookie_or_token: Annotated[str, Depends(get_cookie_or_token)],):
     """Handle WebSocket connections between Twilio and OpenAI."""
     print("Client connected")
     await websocket.accept()
+
+    data = await websocket.receive_json()
+    token = data.get("phone_number")
+    print(token,"here is phone")
+    
+    print(cookie_or_token,"here it is skibbidy....")
 
     async with websockets.connect(
         'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01',
@@ -172,7 +232,10 @@ async def handle_media_stream(websocket: WebSocket):
             nonlocal stream_sid, last_assistant_item, response_start_timestamp_twilio
             conversation_log = []
             conversation_id = None
-
+            
+            phone_number = get_all_phone_numbers()
+            phone_number = phone_number[0]
+            print("here is phone ig :",phone_number)
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
@@ -186,7 +249,7 @@ async def handle_media_stream(websocket: WebSocket):
                         if transcription:
                             conversation_log.append({"role": "user", "text": transcription})
                             
-                            store_message(conversation_id, "user", transcription)##
+                            store_message(conversation_id, "user", transcription,phone_number)##
                             print(f"User said: {transcription}") 
 
                     if response.get("type") == "response.done":
@@ -196,7 +259,8 @@ async def handle_media_stream(websocket: WebSocket):
                                        for content in item.get("content"): #for content in item.get("content",[]):
                                                if content.get("type") == "audio":
                                                 assistant_text = content.get("transcript")
-                                                store_message(conversation_id, "assistant", assistant_text)##
+
+                                                store_message(conversation_id, "assistant", assistant_text,phone_number)##
                                                 print("Assistant:", assistant_text)
 
                     if response['type'] in LOG_EVENT_TYPES:
@@ -236,8 +300,6 @@ async def handle_media_stream(websocket: WebSocket):
                 
             except Exception as e:
                 print(f"Error in send_to_twilio: {e}")
-
-
 
         async def handle_speech_started_event():
             """Handle interruption when the caller's speech starts."""
