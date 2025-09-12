@@ -5,12 +5,15 @@
 [x] user responses must be transcribed 
 [ ] need to test run user and assistant conversation.
 [ ] script decision needs to be written.
-
-
+[x] pass phone number and user message store in same db
+[] test with new phone.
+[] conversation logs now need to be analyzed by ai to determine to log out a user or not.
 meantion teams and messages integration
+
+
 show a demo while multiple emulated phones are running the demo and how agent handles it.
 
-
+what if you store phone number then store the rest of the details?
 
 user clicks fraud.
 fraud gets sent to inti.py
@@ -22,3 +25,14 @@ ai agent gathers conversation and stores it in database
 ai agent then makes the decision to lockout,ignore threat,mark as suspicious.
 
 fraud log,ai agent decisions and conversation are stored in a dashboard.
+
+--------------
+for making decisions ai needs to look at what the user said.
+upon making decision it needs to be logged.
+decision needs to be linked to the conversation
+
+sql table v1
+decision
+conversation(reasoning maybe clicking on it send you there)
+conversation id
+phone number
