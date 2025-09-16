@@ -42,6 +42,23 @@ def get_all_phone_numbers():
     conn.close()
     return phone_numbers
 
+def get_username():
+    conn = sqlite3.connect("duo_logs.db")
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT username FROM user_name;")
+    cursor.execute
+
+    rows = cursor.fetchall()
+   # if rows:  # only delete if there was something///////////// deletes to have it ready for new phone number
+   #     cursor.execute("DELETE FROM phone_number;")
+    #    conn.commit()
+
+    user_name = [row[0] for row in rows]
+    
+    conn.close()
+    return user_name
+
 
 # Example usage
 #phones = get_all_phone_numbers()
@@ -99,7 +116,8 @@ async def create_openai_websocket_connection():
 
 
 def trigger_ai_prompt(phone_number):
-    phone_number='3477559738'
+    phone_number=  '3477559738' # '8562399857'
+   # get_username()
     response = requests.post(f"http://localhost:5003/call-me?phone_number={phone_number}")
     print(response.status_code, response.json())
     async def start():
@@ -127,6 +145,7 @@ async def get_cookie_or_token(
 async def call_me(phone_number:str):
     
     store_phone_number(phone_number)
+    
     print(phone_number,'here is in/call-me')
     """Make Twilio call your phone and connect to AI media stream."""
     call = client.calls.create(
@@ -234,6 +253,9 @@ async def handle_media_stream(websocket: WebSocket,cookie_or_token: Annotated[st
             conversation_id = None
             
             phone_number = get_all_phone_numbers()
+            user_name=get_username()
+            user_name=user_name[0]
+            print("here is user_name from twilio!",user_name)
             phone_number = phone_number[0]
             print("here is phone ig :",phone_number)
             try:
@@ -243,13 +265,13 @@ async def handle_media_stream(websocket: WebSocket,cookie_or_token: Annotated[st
                     if response.get("type") == "response.created":
                         conversation_id = response.get("response", {}).get("conversation_id")
                         print(f"Assigned conversation_id: {conversation_id}")
-
+                        
                     if response.get('type') == 'conversation.item.input_audio_transcription.completed':##outputs user's reply.
                         transcription = response.get('transcript')
                         if transcription:
                             conversation_log.append({"role": "user", "text": transcription})
                             
-                            store_message(conversation_id, "user", transcription,phone_number)##
+                            store_message(user_name,conversation_id, "user", transcription,phone_number)##
                             print(f"User said: {transcription}") 
 
                     if response.get("type") == "response.done":
@@ -260,7 +282,7 @@ async def handle_media_stream(websocket: WebSocket,cookie_or_token: Annotated[st
                                                if content.get("type") == "audio":
                                                 assistant_text = content.get("transcript")
 
-                                                store_message(conversation_id, "assistant", assistant_text,phone_number)##
+                                                store_message(user_name,conversation_id, "assistant", assistant_text,phone_number)##
                                                 print("Assistant:", assistant_text)
 
                     if response['type'] in LOG_EVENT_TYPES:

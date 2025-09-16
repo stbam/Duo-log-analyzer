@@ -9,7 +9,8 @@
 [] test with new phone.
 [] conversation logs now need to be analyzed by ai to determine to log out a user or not.
 meantion teams and messages integration
-
+[x] lockout user by switching status to "disabled". Later find a way to mark users as fraud and etc.
+[x] integrate rules_base.py code so it sends signals to duo_log and stores decision on a dashboard
 
 show a demo while multiple emulated phones are running the demo and how agent handles it.
 

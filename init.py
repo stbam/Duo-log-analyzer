@@ -2,7 +2,8 @@ from duo_client.admin import Admin
 from dotenv import load_dotenv
 import os
 import time
-from db_store import store_suspicious_log
+from db_store import store_suspicious_log,store_user_name, store_phone_number,get_latest_conversation_id
+from rules_based import evaluate_conversation #needed to evaluate a convo and send to duo
 from twilio_agent import trigger_ai_prompt,handle_media_stream,get_cookie_or_token
 import json
 
@@ -13,13 +14,12 @@ admin_api = Admin(
     skey=os.getenv("DUO_SKEY") ,       # secret key
     host=os.getenv("DUO_HOST")
 )
-device = '347-755-9738'
-
+device = "856-239-9857" #'347-755-9738'
+user_name="bob"
+store_phone_number(device)
+store_user_name(user_name)
 
 trigger_ai_prompt(device) # triggers ai prompt from another file
-#get_cookie_or_token(device,device)
-#handle_media_stream(device)
-#last_seen= 0 
 try:
     with open("last_seen.txt", "r") as f:
         last_seen = int(f.read())
@@ -31,60 +31,64 @@ while True:
     try:
         with open("last_seen.txt", "w") as f:
             f.write(str(last_seen))
-        logs = admin_api.get_authentication_log(mintime=last_seen+1) #commented out to avoid api trigger
+        logs = admin_api.get_authentication_log(api_version=2,mintime=last_seen+1) #commented out to avoid api trigger
        # with open("log_seen.txt","r") as f:
             #logs= json.load(f)  # must be valid JSON list of dicts
 
        # with open("log_seen.txt","w") as f:
         #     f.write(str(logs))
 
-      #  print(logs)
+        print(logs)
         #for log in logs:
-        for log in logs: #  for log in sample_logs:
-            
-            print(log) 
+        if isinstance(logs, dict) and "authlogs" in logs:
+            log_entries = logs["authlogs"]
+        else:
+            log_entries = logs  # fallback for v1
+        for log in log_entries: #  for log in sample_logs:
+           # print(log) 
+            user_name = log['user']['name']
             timestamp = log.get("timestamp")
+            timestamp=timestamp * 1000
+            print(timestamp,"here is time stamp!")
             #print(timestamp)
-            if timestamp> last_seen:
+            print(last_seen,"here is last seen!")
+            if timestamp>= last_seen:
                 last_seen = timestamp 
-                print("User:", log.get("username"))
-                print("Timestamp:", log.get("timestamp"))
-                print("Result:", log.get("result"))
-                print("IP:", log.get("ip"))
-                print("Device:", log.get("device"))
-                print("Email:", log.get("email"))
-                print("Factor:", log.get("factor"))
-                print("Integration:", log.get("integration"))
-                print("ISO Timestamp:", log.get("isotimestamp"))
-                print("Reason:", log.get("reason"))
-                print("Event Type:", log.get("eventtype"))
-                print("Host:", log.get("host"))
-                print("Alias:", log.get("alias"))
-                print("New Enrollment:", log.get("new_enrollment"))
-                print("OOD Software:", log.get("ood_software"))
-                print("-" * 40)
 
+                user_key = log.get("user", {}).get("key")
+                user_name=log.get("user",{}).get("name")
+                print("here is username!!",user_name)
+                print(user_key,"here is key")
+                print("User ID:", log.get("user", {}).get("key"))
+                #txid = log.get("txid")
+                #print("here txid",txid)
 
               #  device= log.get("device") working 
               #  trigger_ai_prompt(device) 
-
+                admin_api.update_user(user_key, status="active")
+               # txid = "1c6d04af-9634-456b-a40b-00b6d35e59eb"  # auth event TXID
+                #print(user_name,"here user name")
 
                 log_entry={
-                    "username":log.get("username"),
+                    "username":user_name,#log.get("username"),
                     "timestamp":log.get("timestamp")
                 }
-                store_suspicious_log(log_entry)
-                print("Stored suspicious log")
-                if log.get("result") != "success": 
+                #store_suspicious_log(log_entry)
+                #print("Stored suspicious log")
+                if log.get("result") != "success":  #if result returns a fraud
+                    
                     store_suspicious_log(log)
                     print("stored sus log")
+                    conversation_id= get_latest_conversation_id(user_name)
+                    print(get_latest_conversation_id(user_name),"here is uesrname!!")
+                    evaluate_conversation(conversation_id)
                     
+
             print("time passed")
         time.sleep(60)
     except Exception as e:
         print("error fetching logs: ",e)
         time.sleep(60)
-
 
 
 
