@@ -1,5 +1,15 @@
 import sqlite3
 from db_store import store_script_decision
+from dotenv import load_dotenv
+import os
+from duo_client.admin import Admin
+
+load_dotenv()
+admin_api = Admin(
+    ikey=os.getenv("DUO_IKEY"),  # integration key
+    skey=os.getenv("DUO_SKEY") ,       # secret key
+    host=os.getenv("DUO_HOST")
+)
 
 # --- rule-based decision engine ---
 fraud_indicators = [
@@ -43,7 +53,7 @@ def extract_keywords_and_decision(user_messages):
     return matched_keywords, decision
 
 
-def evaluate_conversation(conversation_id):
+def evaluate_conversation(conversation_id,user_key):
     decision = conversation_id #evaluate_conversation(conversation_id) #"conv_CGUoUnraTNG2HbCeeDDXP"
     try:
 
@@ -67,6 +77,18 @@ def evaluate_conversation(conversation_id):
 
         print("Matched keywords:", matched_keywords)
         print("Decision:", decision)
+
+        if decision == "lockout":
+            print(user_key,"in rules_based.py")
+            admin_api.update_user(user_key, status="disabled") #active
+            print("Lock account via Duo API")
+        elif decision == "safe":
+            admin_api.update_user(user_key, status="active") #disabled
+            print("User safe, no lock")
+        else:
+            print("Escalate to human analyst")
+
+
         return decision
     except Exception as e:
         print(f"Database Error: {e}")
@@ -77,8 +99,10 @@ def evaluate_conversation(conversation_id):
 # --- usage example ---
 
 if decision == "lockout":
+    #admin_api.update_user(user_key, status="disabled") #active
     print("Lock account via Duo API")
 elif decision == "safe":
+   # admin_api.update_user(user_key, status="active") #disabled
     print("User safe, no lock")
 else:
     print("Escalate to human analyst")

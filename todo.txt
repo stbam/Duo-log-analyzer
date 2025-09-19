@@ -11,6 +11,9 @@
 meantion teams and messages integration
 [x] lockout user by switching status to "disabled". Later find a way to mark users as fraud and etc.
 [x] integrate rules_base.py code so it sends signals to duo_log and stores decision on a dashboard
+[] add the duo code for testing purposes?
+[] two emulator devices have to be registed for sim
+[] add voice recording of the conversation
 
 show a demo while multiple emulated phones are running the demo and how agent handles it.
 

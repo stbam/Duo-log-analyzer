@@ -27,3 +27,7 @@ restart requiring you to go into twilio to manually change the url.)
 
 
 
+demo vid - initialize two emulated phones then have one be a user one be a duo triage caller. Have the two ai bots communicate to one another. Log the conversation. Have the rules_based.py make a decision based of keywords from that decision.
+
+
+store_user_name in init.py needs to be updated i think thats the reason for conv_bob
