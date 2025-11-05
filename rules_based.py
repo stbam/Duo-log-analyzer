@@ -71,7 +71,7 @@ def evaluate_conversation(conversation_id,user_key):
         print("User messages:", user_messages)
 
         matched_keywords, decision = extract_keywords_and_decision(user_messages)
-
+        
         # Store in DB
         store_script_decision(conversation_id, matched_keywords, decision)
 

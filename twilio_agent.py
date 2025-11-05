@@ -34,9 +34,9 @@ def get_all_phone_numbers():
     cursor.execute
 
     rows = cursor.fetchall()
-    if rows:  # only delete if there was something///////////// deletes to have it ready for new phone number
-        cursor.execute("DELETE FROM phone_number;")
-        conn.commit()
+    #if rows:  # only delete if there was something///////////// deletes to have it ready for new phone number
+    #    cursor.execute("DELETE FROM phone_number;")
+    #    conn.commit()
 
     phone_numbers = [row[0] for row in rows]
     
@@ -73,20 +73,15 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 CLIENT_SID = os.getenv('CLIENT_SID')
 ClIENT_TOKEN=os.getenv('ClIENT_TOKEN')
-PORT = int(os.getenv('PORT', 5003))
+PORT = int(os.getenv('PORT', 5003))#You are an automated fraud verification assistant
 SYSTEM_MESSAGE = (
-    "You are an automated fraud verification assistant.\n"
-                        "Start the call by greeting the user and saying: 'We received a Duo fraud alert.'\n"
-                        "Then ask the following questions one at a time, waiting for the user's response before moving to the next:\n"
-                        "1. Can you confirm your username?\n"
-                        "2. Can you confirm your email?\n"
-                        "3. Can you confirm your full name?\n"
-                        "4. Was this an accidental push?\n"
-                        "   - If yes, ask: Was the fraud pushed because of spam prompting? Can you describe it?\n"
-                        "   - If no, ask: Was the fraud pushed because of a suspicious login attempt? Can you describe it?\n"
-                        "Finally, briefly thank them for their time and tell them they may be contacted again based on these responses."
+       "You are an AI fraud verification assistant speaking over the phone. "
+    "Ask questions step by step. If a user's response is unclear, incomplete, or doesn't match expectations, "
+    "politely ask them to repeat or clarify before moving on. "
+    "You can use conversational fillers, short pauses, and side comments to sound human."
+            
 )
-VOICE = 'alloy'
+VOICE = 'verse'
 LOG_EVENT_TYPES = [
     'error', 'response.content.done', 'rate_limits.updated',
     'response.done', 'input_audio_buffer.committed',
@@ -121,6 +116,7 @@ def trigger_ai_prompt(phone_number):
    # get_username()
     response = requests.post(f"http://localhost:5003/call-me?phone_number={phone_number}")
     print(response.status_code, response.json())
+    
     async def start():
         openai_ws = await create_openai_websocket_connection()
         print("test3")
@@ -145,16 +141,22 @@ async def get_cookie_or_token(
 @app.post("/call-me")
 async def call_me(phone_number:str):
     
-    store_phone_number(phone_number)
-    
+    #store_phone_number(phone_number)
+   
+    phone_number="3477559738"
     print(phone_number,'here is in/call-me')
     """Make Twilio call your phone and connect to AI media stream."""
+    
     call = client.calls.create(
+        record=True, # sends a signal to record in record logs
         to=phone_number,
         from_='6187163207',
-        url=f"https://d3dcb23a5904.ngrok-free.app/outbound-twiml?phone_number={phone_number}"  # hardcoded needs to be switched for var 
+        url=f"https://17620d6f5e8f.ngrok-free.app/outbound-twiml?phone_number={phone_number}"  # hardcoded needs to be switched for var 
     )
-    return {"status": "calling", "sid": call.sid}
+   # print(call.sid,"here it is")
+    store_phone_number(phone_number,call.sid) #ALTER TABLE phone_number ADD COLUMN SID TEXT; to fix and not erase database but may need to be redone?
+
+    return {"status": "calling", "sid": call.sid} 
 
 
 @app.api_route("/outbound-twiml", methods=["GET", "POST"])
@@ -180,6 +182,7 @@ async def index_page():
 async def handle_incoming_call(request: Request):
     """Handle incoming call and return TwiML response to connect to Media Stream."""
     response = VoiceResponse()
+    
     # <Say> punctuation to improve text-to-speech flow
     response.say("Please wait while we connect your call to the A. I. voice assistant, powered by Twilio and the Open-A.I. Realtime API")
     response.pause(length=1)
@@ -258,7 +261,7 @@ async def handle_media_stream(websocket: WebSocket,cookie_or_token: Annotated[st
             user_name=user_name[0]
             print("here is user_name from twilio!",user_name)
             phone_number = phone_number[0]
-            print("here is phone ig :",phone_number)
+            print("here is phone ig :",phone_number)#https://d3dcb23a5904.ngrok-free.app
             try:
                 async for openai_message in openai_ws:
                     response = json.loads(openai_message)
@@ -394,6 +397,11 @@ async def send_initial_conversation_item(openai_ws): #should be removed since sy
     }
     await openai_ws.send(json.dumps(initial_conversation_item))
     await openai_ws.send(json.dumps({"type": "response.create"}))
+
+
+
+
+    
 async def initialize_session(openai_ws):
     """Control initial session with OpenAI."""
     session_update = {

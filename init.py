@@ -9,6 +9,8 @@ import json
 import asyncio
 
 
+
+
 load_dotenv()
 admin_api = Admin(
     ikey=os.getenv("DUO_IKEY"),  # integration key
@@ -17,8 +19,9 @@ admin_api = Admin(
 )
 
 device ="347-755-9738" # "856-239-9857" #'347-755-9738'
+trigger_ai_prompt(device) 
 user_name="bob"
-store_phone_number(device)
+#store_phone_number(device)
 store_user_name(user_name)
 
 #trigger_ai_prompt(device) # triggers ai prompt from another file
@@ -29,17 +32,9 @@ except FileNotFoundError:
     last_seen = 0
 while True:
     print("Starting log fetch cycle...")
-    #print(dir(admin_api)) print lets me see all the commands available for duo logs 
     try:
-      #  with open("last_seen.txt", "w") as f:
-       #     f.write(str(last_seen))
+
         logs = admin_api.get_authentication_log(api_version=2,mintime=last_seen+1) #commented out to avoid api trigger
-       # with open("log_seen.txt","r") as f:
-            #logs= json.load(f)  # must be valid JSON list of dicts
-
-       # with open("log_seen.txt","w") as f:
-        #     f.write(str(logs))
-
         print(logs)
         #for log in logs:
         if isinstance(logs, dict) and "authlogs" in logs:
@@ -47,36 +42,28 @@ while True:
         else:
             log_entries = logs  # fallback for v1
         for log in log_entries: #  for log in sample_logs:
-            #print(log) 
             user_name = log['user']['name']
             timestamp = log.get("timestamp")
             timestamp=timestamp * 1000
             print(timestamp,"here is time stamp!")
-            #print(timestamp)
             print(last_seen,"here is last seen!")
+            
+            device_name = log.get("access_device",{}).get("os")
+            print(device_name,"here is device name")
+
             if timestamp> last_seen:
                 last_seen = timestamp 
-
                 user_key = log.get("user", {}).get("key")
                 user_name=log.get("user",{}).get("name")
                 
                 print("here is username!!",user_name)
                 print(user_key,"here is key")
                 print("User ID:", log.get("user", {}).get("key"))
-                #txid = log.get("txid")
-                #print("here txid",txid)
-
-              #  device= log.get("device") working 
-              #  trigger_ai_prompt(device) 
-
-              
-                #admin_api.update_user(user_key, status="active")
-               
-               # txid = "1c6d04af-9634-456b-a40b-00b6d35e59eb"  # auth event TXID
-                #print(user_name,"here user name")
+            
                 log_entry={
                     "username":user_name,#log.get("username"),
-                    "timestamp":log.get("timestamp")
+                    "timestamp":log.get("timestamp"),
+                    "access_device":device_name
                 }
                 #store_suspicious_log(log_entry)
                 #print("Stored suspicious log")
@@ -103,10 +90,9 @@ while True:
                     print("stored sus log")
                 with open("last_seen.txt", "w") as f:
                     f.write(str(last_seen))
-                    
 
             print("time passed")
-        time.sleep(60)
+        #time.sleep(60)
     except Exception as e:
         print("error fetching logs: ",e)
         time.sleep(60)
