@@ -14,7 +14,7 @@ def store_suspicious_log(log):
     #username = log.get("username")
     timestamp = log.get("timestamp")
     result = log.get("result")
-    ip = log.get("auth_device",{}).get("ip")#generate_random_ip() #log.get("ip")
+    ip = "72.19.53.111" #log.get("auth_device",{}).get("ip")#generate_random_ip() #log.get("ip")
     device = log.get("access_device",{}).get("os") #new addition
     email=log.get("email")
 
@@ -266,8 +266,15 @@ def get_latest_conversation_id(user_name):
     except Exception as e:
         print(f"Database error fetching latest conversation: {e}")
         return None
-    
 
+def extract_sid():
+    try:
+        conn = sqlite3.connect("duo_logs.db")
+        cursor  = conn.cursor()
+        cursor.execute("select SID from phone_number;")
+        results= cursor.fetchall()
 
-
-    
+        return results
+    except Exception as e:
+        print(f"Database error:{e} ")
+        return None

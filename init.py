@@ -19,7 +19,7 @@ admin_api = Admin(
 )
 
 device ="347-755-9738" # "856-239-9857" #'347-755-9738'
-trigger_ai_prompt(device) 
+#trigger_ai_prompt(device) 
 user_name="bob"
 #store_phone_number(device)
 store_user_name(user_name)

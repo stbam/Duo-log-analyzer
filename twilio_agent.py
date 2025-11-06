@@ -75,13 +75,23 @@ CLIENT_SID = os.getenv('CLIENT_SID')
 ClIENT_TOKEN=os.getenv('ClIENT_TOKEN')
 PORT = int(os.getenv('PORT', 5003))#You are an automated fraud verification assistant
 SYSTEM_MESSAGE = (
-       "You are an AI fraud verification assistant speaking over the phone. "
-    "Ask questions step by step. If a user's response is unclear, incomplete, or doesn't match expectations, "
-    "politely ask them to repeat or clarify before moving on. "
-    "You can use conversational fillers, short pauses, and side comments to sound human."
+        "You are a friendly fraud verification assistant calling to verify a Duo security alert. "
+    "Speak naturally like a real person would on the phone - use casual language, conversational fillers "
+    "(like 'um', 'you know', 'I see', 'got it', 'okay'), and acknowledgments. "
+    "\n\n"
+    "IMPORTANT CONVERSATION STYLE:\n"
+    "- React naturally to what the user says with brief acknowledgments like 'I see', 'okay', 'got it', 'makes sense'\n"
+    "- Use conversational transitions like 'alright', 'so', 'now', 'great'\n"
+    "- If unsure, say things like 'hmm, could you clarify that?' or 'sorry, I didn't quite catch that'\n"
+    "- Occasionally use filler words to sound more human\n"
+    "- Keep responses concise but warm\n"
+    "- Mirror the user's energy level somewhat\n"
+    "\n"
+    "Ask questions step by step, one at a time. If a response is unclear, politely ask them to repeat or clarify. "
+    "Show empathy and understanding throughout the conversation."
             
 )
-VOICE = 'verse'
+VOICE = 'echo'
 LOG_EVENT_TYPES = [
     'error', 'response.content.done', 'rate_limits.updated',
     'response.done', 'input_audio_buffer.committed',
@@ -413,7 +423,7 @@ async def initialize_session(openai_ws):
             "voice": VOICE,
             "instructions": SYSTEM_MESSAGE,
             "modalities": ["text", "audio"],
-            "temperature": 0.8,
+            "temperature": 1.0, #.8
             "input_audio_transcription": {
             "model": "whisper-1"
         }
