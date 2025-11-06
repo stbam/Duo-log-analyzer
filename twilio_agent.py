@@ -161,7 +161,7 @@ async def call_me(phone_number:str):
         record=True, # sends a signal to record in record logs
         to=phone_number,
         from_='6187163207',
-        url=f"https://17620d6f5e8f.ngrok-free.app/outbound-twiml?phone_number={phone_number}"  # hardcoded needs to be switched for var 
+        url=f"https://565c90e7e2e2.ngrok-free.app/outbound-twiml?phone_number={phone_number}"  # hardcoded needs to be switched for var 
     )
    # print(call.sid,"here it is")
     store_phone_number(phone_number,call.sid) #ALTER TABLE phone_number ADD COLUMN SID TEXT; to fix and not erase database but may need to be redone?
